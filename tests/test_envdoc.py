@@ -156,7 +156,7 @@ class WriteTest(Base):
         self.write(".env.example", "ALPHA=x\n")
         before = self.read(".env.example")
         out = self.run_cli("write")
-        self.assertIn("to'liq", out.stdout)
+        self.assertIn("already complete", out.stdout)
         self.assertEqual(self.read(".env.example"), before)
 
     def test_write_then_check_is_clean(self):

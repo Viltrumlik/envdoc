@@ -17,16 +17,16 @@ envdoc check
 ```
 
 ```
-KODDA BOR, HUJJATDA YO'Q:
+USED IN CODE, NOT DOCUMENTED:
   STRIPE_KEY                     billing/charge.py:14
   SENTRY_DSN                     app/settings.py:91
 
-HUJJATDA BOR, KODDA YO'Q:
+DOCUMENTED, NOT USED:
   OLD_REDIS_URL
-  (eskirgan bo'lishi mumkin -- yoki tashqarida ishlatiladi)
+  (stale, or set outside this codebase)
 
-2 yetishmayapti, 1 ortiqcha
-`envdoc write` ularni qo'shadi
+2 missing, 1 extra
+`envdoc write` adds them
 ```
 
 ## Commands

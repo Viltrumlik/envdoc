@@ -175,13 +175,13 @@ def cmd_list(root, args):
             name: [{"file": u.path, "line": u.line} for u in group]
             for name, group in sorted(used.items())}}, indent=2, sort_keys=True))
     elif not used:
-        print("koddan env o'zgaruvchisi topilmadi")
+        print("no environment variables found in the code")
     else:
         for name in sorted(used):
             first = used[name][0]
-            extra = "  (+%d joyda)" % (len(used[name]) - 1) if len(used[name]) > 1 else ""
+            extra = "  (+%d more)" % (len(used[name]) - 1) if len(used[name]) > 1 else ""
             print("%-32s %s:%d%s" % (name, first.path, first.line, extra))
-        print("\n%d o'zgaruvchi" % len(used))
+        print("\n%d variables" % len(used))
     return EXIT_OK
 
 
@@ -197,24 +197,24 @@ def cmd_check(root, args):
                           "used": sorted(used)}, indent=2, sort_keys=True))
     else:
         if example is None:
-            print("%s yo'q" % rel)
+            print("%s does not exist" % rel)
         if missing:
-            print("KODDA BOR, HUJJATDA YO'Q:")
+            print("USED IN CODE, NOT DOCUMENTED:")
             for name in missing:
                 first = used[name][0]
                 print("  %-30s %s:%d" % (name, first.path, first.line))
         if unused:
-            print("HUJJATDA BOR, KODDA YO'Q:")
+            print("DOCUMENTED, NOT USED:")
             for name in unused:
                 print("  %s" % name)
-            print("  (eskirgan bo'lishi mumkin -- yoki tashqarida ishlatiladi)")
+            print("  (stale, or set outside this codebase)")
         if not missing and not unused:
-            print("mos: %d o'zgaruvchi, %s bilan bir xil" % (len(used), rel))
+            print("in sync: %d variables, matching %s" % (len(used), rel))
         elif not missing:
-            print("\nyetishmaydigani yo'q; %d ta ortiqcha yozuv" % len(unused))
+            print("\nnothing missing; %d extra entries" % len(unused))
         else:
-            print("\n%d yetishmayapti, %d ortiqcha" % (len(missing), len(unused)))
-            print("`envdoc write` ularni qo'shadi")
+            print("\n%d missing, %d extra" % (len(missing), len(unused)))
+            print("`envdoc write` adds them")
     if missing:
         return EXIT_DRIFT
     return EXIT_DRIFT if (unused and args.strict) else EXIT_OK
@@ -227,20 +227,20 @@ def cmd_write(root, args):
     rel = os.path.relpath(example, root)
 
     if not missing:
-        print("%s allaqachon to'liq" % rel)
+        print("%s is already complete" % rel)
         return EXIT_OK
 
     out = list(lines)
     if out and out[-1].strip():
         out.append("")
-    out.append("# envdoc qo'shdi -- qiymat va izohni o'zingiz to'ldiring")
+    out.append("# added by envdoc -- fill in the value and a comment")
     for name in missing:
         first = used[name][0]
         out.append("# %s:%d" % (first.path, first.line))
         out.append("%s=" % name)
     with open(example, "w", encoding="utf-8") as f:
         f.write("\n".join(out).rstrip("\n") + "\n")
-    print("%s ga %d o'zgaruvchi qo'shildi:" % (rel, len(missing)))
+    print("added %d variables to %s:" % (len(missing), rel))
     for name in missing:
         print("  %s" % name)
     return EXIT_OK
@@ -252,30 +252,30 @@ def cmd_write(root, args):
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="envdoc",
-        description=".env.example ni kod bilan solishtiradi.")
+        description="Compare .env.example with what the code actually uses.")
     p.add_argument("--version", action="version", version="envdoc " + VERSION)
-    p.add_argument("-C", dest="root", default=".", metavar="YO'L",
-                   help="qaysi papkada ishlash (sukut: joriy)")
+    p.add_argument("-C", dest="root", default=".", metavar="PATH",
+                   help="which folder to work in (default: current)")
     sub = p.add_subparsers(dest="command")
 
     def add(name, help_text, func):
         sp = sub.add_parser(name, help=help_text, description=help_text)
         sp.add_argument("--json", action="store_true")
         sp.add_argument("--all", action="store_true",
-                        help="HOME, PATH kabi tizim o'zgaruvchilarini ham ko'rsatish")
+                        help="include system variables such as HOME and PATH")
         sp.set_defaults(func=func)
         return sp
 
-    add("list", "kodda ishlatilgan o'zgaruvchilar", cmd_list)
-    sp = add("check", "hujjat kod bilan mos keladimi (CI uchun)", cmd_check)
+    add("list", "variables the code reads", cmd_list)
+    sp = add("check", "is the example file up to date (for CI)", cmd_check)
     sp.add_argument("--strict", action="store_true",
-                    help="ortiqcha yozuvlar ham xato hisoblansin")
-    add("write", "yetishmayotganlarini hujjatga qo'shish", cmd_write)
+                    help="treat extra entries as failures too")
+    add("write", "add what is missing to the example file", cmd_write)
 
     args = p.parse_args(argv)
     root = os.path.abspath(args.root)
     if not os.path.isdir(root):
-        print("xato: papka emas: %s" % args.root, file=sys.stderr)
+        print("error: not a folder: %s" % args.root, file=sys.stderr)
         return EXIT_USAGE
     func = getattr(args, "func", None)
     if func is None:                    # buyruqsiz chaqirilsa -- check
@@ -284,7 +284,7 @@ def main(argv=None):
     try:
         return func(root, args)
     except OSError as e:
-        print("xato: %s" % e, file=sys.stderr)
+        print("error: %s" % e, file=sys.stderr)
         return EXIT_ERROR
 
 
